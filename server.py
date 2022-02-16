@@ -1,8 +1,11 @@
-#from operator import truediv
-from flask import Flask
+import crypt
+from math import prod
+import re
+from flask import Flask, abort, request
 from mock_data import catalog
 from about_me import me
 import json
+import random
 
 #Servidor/app
 app = Flask("server")
@@ -29,6 +32,34 @@ def test():
 @app.route("/api/catalog")
 def get_catalog():
     return json.dumps(catalog)
+
+
+
+@app.route("/api/catalog", methods=["POST"])
+def save_products():
+#leer the payload as a dictionary frim json string
+    product= request.get_json()
+
+#VALDACIONES
+#mostrar que el titulo tenga mas de 5 caracteres
+    if not "title" in product or len(product["title"])<5:
+        return abort(400, "There should be a title. Title should be least 5 chars long")
+#Agregar el precio de manera obligatoria
+    if not "price" in product:
+        return abort(400,"Price is required")
+#el precio no esta en enteros o decimal muestra un error 
+    if not isinstance(product["price"],int) and not isinstance(product["price"],float):
+        return abort(400,"Price es invalid")
+#el precio debe ser mayor a cero
+    if product["price"]<= 0:
+        return (400,"Price should be grester than zero")
+
+#asignar un valor a id
+    product["id"]=random.randint(10000,50000)
+    catalog.append(product)#Guardar el valor de id
+    return json.dumps(product)
+
+
 
 #con la funcion get(en Thunder Client) /api/catalog/count y regresar el num total de los productos
 @app.route("/api/catalog/count")
@@ -61,5 +92,57 @@ def get_most_expensive():
         if i["price"] > pivot["price"]  :
             pivot=i
     return json.dumps(pivot)    
+
+#Mostrar los resultado guardados de la variable category del metodo Catalog
+@app.route("/api/categories")
+def get_categories():
+    res=[]
+    for i in catalog:
+        category=i["category"]
+        if not category in res:
+            res.append(category)
+    return json.dumps(res)
+
+#crear una funcion que permita al cliente (reaccionar) recuperar todos los productos que pertenecen a la categoría específica
+#el cliente enviará la categoría y esperará una lista de productos a cambio
+@app.route("/api/catalog/<category>")
+def get_products_category(category):
+    for i in catalog:
+        if i["category"]==category:
+            print(i["category"])
+    return "Funciono!"
+
+#API Methods for coupom codes
+coupons=[
+    {
+        "code":"Prueba"
+    },
+    {
+        "code":"Prueba1"
+    },
+    {
+        "code":"Prueba2"
+    }
+
+]
+
+@app.route("/api/coupons")
+def get_coupons():
+    return json.dumps(coupons)
+
+@app.route("/api/coupons", methods=["POST"])
+def save_coupons():
+    coupon =request.get_json()
+    coupon["id"]=random.randint(500,900)
+    coupons.append(coupon)
+    return json.dumps(coupon)
+
+@app.route("/api/coupons/<code>")
+def get_coupon_code(code):
+    for i in coupons:
+        if i["code"]==code:
+            return json.dumps(i)
+    return abort(404)
+
 #Iniciar el servidor
 app.run(debug=True)
